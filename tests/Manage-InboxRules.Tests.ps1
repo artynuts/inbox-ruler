@@ -2,10 +2,7 @@
 BeforeAll {
     . $PSScriptRoot\..\Manage-InboxRules.ps1
 
-    # Create mock functions for Exchange Online cmdlets if they don't exist
-    if (!(Get-Command Get-AcceptedDomain -ErrorAction SilentlyContinue)) {
-        function Get-AcceptedDomain {}
-    }
+    # Create mock function for Exchange Online cmdlets if it doesn't exist
     if (!(Get-Command Get-InboxRule -ErrorAction SilentlyContinue)) {
         function Get-InboxRule {}
     }
