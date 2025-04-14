@@ -2,19 +2,39 @@
 . .\Manage-InboxRules.ps1
 
 # First, connect to Exchange Online
-Connect-ToExchange
+# Connect-ToExchange
 
 # List all current inbox rules
-Write-Host "Current inbox rules:"
-Get-InboxRules | Format-Table Name, Description, Enabled
+#Write-Host "Current inbox rules:"
+#Get-InboxRules | Format-Table Name, Description, Enabled
 
 # Example: Create a rule to move emails from a specific sender to a folder
-New-CustomInboxRule -RuleName "Newsletter Filter" `
+# Note: Folder paths should start with 'Inbox\'
+New-CustomInboxRule -RuleName "Test Newsletter Filter" `
     -FromAddress "newsletter@example.com" `
-    -TargetFolder "Inbox\Newsletters"
+    -TargetFolder ":\Inbox\TestNewsletters"
+
+# Example: Create another rule with a subfolder
+New-CustomInboxRule -RuleName "Test Project Updates" `
+    -FromAddress "updates@company.com" `
+    -TargetFolder "Inbox\TestWork\Projects"
+
+New-CustomInboxRule -RuleName "Test Project Updates 1" `
+    -FromAddress "updates@company.com" `
+    -TargetFolder "Inbox\TestWork\Projects"
+
+New-CustomInboxRule -RuleName "Test Project Updates 2" `
+    -FromAddress "updates@company.com" `
+    -TargetFolder "Inbox\TestWork\Project"
+
+New-CustomInboxRule -RuleName "Test Project Updates 5" `
+    -FromAddress "updates@company.com" `
+    -TargetFolder "Inbox\TestWork\Project 5"
 
 # Example: Rename a rule
-Rename-CustomInboxRule -CurrentRuleName "Newsletter Filter" -NewRuleName "Weekly Newsletter Filter"
+Rename-CustomInboxRule -CurrentRuleName "Test Project Updates 3" -NewRuleName "Test Project Updates 3 Renamed"
 
-# Example: Remove a rule
+# Example: Remove rules (commented out for safety)
 # Remove-CustomInboxRule -RuleName "Weekly Newsletter Filter"
+#Remove-CustomInboxRule -RuleName "Project Updates"
+#Remove-CustomInboxRule -RuleName "Important Alerts"

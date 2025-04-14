@@ -24,7 +24,8 @@ Connect-ToExchange
 Get-InboxRules
 
 # Create a new rule
-New-CustomInboxRule -RuleName "Newsletter" -FromAddress "newsletter@example.com" -TargetFolder "Inbox\Newsletters"
+# Note: Folder paths should start with ':\'
+New-CustomInboxRule -RuleName "Newsletter" -FromAddress "newsletter@example.com" -TargetFolder ":\Newsletters"
 
 # Remove a rule
 Remove-CustomInboxRule -RuleName "Newsletter"

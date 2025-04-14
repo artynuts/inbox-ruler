@@ -28,6 +28,48 @@ function Get-InboxRules {
     }
 }
 
+function New-MailboxFolderHierarchy {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$FolderPath
+    )    try {
+        
+        # Ensure the folder path is in the correct format
+        if (-not $FolderPath.StartsWith(':\')) {
+            $FolderPath = ":\$($FolderPath.TrimStart('\'))"
+        }
+
+        # Split the path into segments and ensure each segment exists
+        $segments = $FolderPath.Split('\')
+        $currentPath = $segments[0] # Start with ":"
+        
+        # Create each segment of the path if it doesn't exist
+        for ($i = 1; $i -lt $segments.Count; $i++) {
+            $parentPath = $currentPath
+            $currentPath = "$currentPath\$($segments[$i])"
+            
+            try {
+                $null = Get-MailboxFolder -Identity $currentPath -ErrorAction Stop
+                Write-Host "Folder exists: $currentPath"
+            }
+            catch {
+                Write-Host "Creating folder: $currentPath"                  
+                try {
+                    New-MailboxFolder -Parent $parentPath -Name $segments[$i]
+                    Wait-MailboxFolderCreation -FolderPath $currentPath
+                }
+                catch {
+                    throw "Failed to create folder '$currentPath': $_"
+                }
+            }
+        }
+        return $FolderPath
+    }
+    catch {
+        throw "Failed to create folder hierarchy '$FolderPath': $_"
+    }
+}
+
 function New-CustomInboxRule {
     param(
         [Parameter(Mandatory=$true)]
@@ -38,8 +80,22 @@ function New-CustomInboxRule {
         
         [Parameter(Mandatory=$true)]
         [string]$TargetFolder
-    )
-      try {
+    )      
+    
+    try {
+        # Check if a rule with this name already exists
+        $existingRule = Get-InboxRule -Identity $RuleName -ErrorAction SilentlyContinue
+        if ($existingRule) {
+            Write-Warning "Rule '$RuleName' already exists. Use Remove-CustomInboxRule first if you want to recreate it."
+            return
+        }
+
+        # Create the folder hierarchy if it doesn't exist
+        $TargetFolder = New-MailboxFolderHierarchy -FolderPath $TargetFolder
+
+        # Create the inbox rule
+        Write-Host "Creating new inbox rule: $RuleName"
+        Write-Host "moving emails from: $FromAddress to folder: $TargetFolder"
         New-InboxRule -Name $RuleName -FromAddressContainsWords $FromAddress -MoveToFolder $TargetFolder
         Write-Host "Created new rule: $RuleName"
     }
@@ -76,6 +132,41 @@ function Rename-CustomInboxRule {
     }
     catch {
         Write-Error "Failed to rename inbox rule: $_"
+    }
+}
+
+function Wait-MailboxFolderCreation {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$FolderPath,
+        
+        [Parameter(Mandatory=$false)]
+        [int]$TimeoutSeconds = 30
+    )
+    
+    try {
+        $timeout = [DateTime]::Now.AddSeconds($TimeoutSeconds)
+        $folderExists = $false
+        
+        while (-not $folderExists -and [DateTime]::Now -lt $timeout) {
+            try {
+                $null = Get-MailboxFolder -Identity $FolderPath -ErrorAction Stop
+                $folderExists = $true
+                Write-Host "Confirmed folder creation: $FolderPath"
+            }
+            catch {
+                Start-Sleep -Seconds 1
+            }
+        }
+        
+        if (-not $folderExists) {
+            throw "Timeout waiting for folder '$FolderPath' to be created"
+        }
+        
+        return $true
+    }
+    catch {
+        throw "Failed to confirm folder creation '$FolderPath': $_"
     }
 }
 
