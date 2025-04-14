@@ -41,16 +41,6 @@ Describe "Connect-ToExchange" {
 Describe "Get-InboxRules" {
     BeforeAll {
         Mock Write-Error
-        Mock Get-AcceptedDomain -MockWith { 
-            [PSCustomObject]@{ Default = $true; DomainName = 'contoso.com' }
-        }
-        Mock Get-CurrentUser -MockWith {
-            $mockIdentity = [PSCustomObject]@{ Name = 'DOMAIN\testuser' }
-            $mockIdentity | Add-Member -MemberType ScriptMethod -Name "GetType" -Value { 
-                return [System.Security.Principal.WindowsIdentity] 
-            } -Force
-            return $mockIdentity
-        }
         Mock Get-InboxRule -MockWith {
             @(
                 [PSCustomObject]@{ Name = 'Rule1'; Enabled = $true },
@@ -59,19 +49,8 @@ Describe "Get-InboxRules" {
         }
     }
 
-    It 'Should get rules for default mailbox when no mailbox specified' {
+    It 'Should get inbox rules' {
         $rules = Get-InboxRules
-        Should -Invoke Get-AcceptedDomain -Times 1
-        Should -Invoke Get-CurrentUser -Times 1
-        Should -Invoke Get-InboxRule -Times 1
-        $rules.Count | Should -Be 2
-        $rules[0].Name | Should -Be 'Rule1'
-    }
-
-    It 'Should get rules for specified mailbox' {
-        $rules = Get-InboxRules -Mailbox 'user@example.com'
-        Should -Not -Invoke Get-AcceptedDomain
-        Should -Not -Invoke Get-CurrentUser
         Should -Invoke Get-InboxRule -Times 1
         $rules.Count | Should -Be 2
         $rules[0].Name | Should -Be 'Rule1'

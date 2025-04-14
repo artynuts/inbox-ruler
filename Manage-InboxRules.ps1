@@ -19,19 +19,8 @@ function Connect-ToExchange {
 }
 
 function Get-InboxRules {
-    param(
-        [Parameter(Mandatory=$false)]
-        [string]$Mailbox = $null
-    )
     try {
-        if ([string]::IsNullOrEmpty($Mailbox)) {
-            $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
-            $rules = Get-InboxRule -Mailbox $Mailbox
-        } else {
-            $rules = Get-InboxRule -Mailbox $Mailbox
-        }
-        return $rules
+        return Get-InboxRule
     }
     catch {
         Write-Error "Failed to get inbox rules: $_"
