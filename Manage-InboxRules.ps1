@@ -23,13 +23,14 @@ function Get-InboxRules {
         [Parameter(Mandatory=$false)]
         [string]$Mailbox = $null
     )
-      try {
+    try {
         if ([string]::IsNullOrEmpty($Mailbox)) {
             $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
             $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
+            $rules = Get-InboxRule -Mailbox $Mailbox
+        } else {
+            $rules = Get-InboxRule -Mailbox $Mailbox
         }
-        
-        $rules = Get-InboxRule -Mailbox $Mailbox
         return $rules
     }
     catch {
