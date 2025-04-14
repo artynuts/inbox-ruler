@@ -36,6 +36,7 @@ Remove-CustomInboxRule -RuleName "Newsletter"
 - `Get-InboxRules`: Lists all inbox rules for a mailbox
 - `New-CustomInboxRule`: Creates a new inbox rule
 - `Remove-CustomInboxRule`: Removes an existing inbox rule
+- `Rename-CustomInboxRule`: Renames an existing inbox rule
 
 ## Contributing
 

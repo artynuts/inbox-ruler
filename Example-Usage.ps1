@@ -13,5 +13,8 @@ New-CustomInboxRule -RuleName "Newsletter Filter" `
     -FromAddress "newsletter@example.com" `
     -TargetFolder "Inbox\Newsletters"
 
+# Example: Rename a rule
+Rename-CustomInboxRule -CurrentRuleName "Newsletter Filter" -NewRuleName "Weekly Newsletter Filter"
+
 # Example: Remove a rule
-# Remove-CustomInboxRule -RuleName "Newsletter Filter"
+# Remove-CustomInboxRule -RuleName "Weekly Newsletter Filter"

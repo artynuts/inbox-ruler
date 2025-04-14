@@ -90,3 +90,29 @@ function Remove-CustomInboxRule {
         Write-Error "Failed to remove inbox rule: $_"
     }
 }
+
+function Rename-CustomInboxRule {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$CurrentRuleName,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$NewRuleName,
+        
+        [Parameter(Mandatory=$false)]
+        [string]$Mailbox = $null
+    )
+    
+    try {
+        if ([string]::IsNullOrEmpty($Mailbox)) {
+            $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
+            $Mailbox = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name -split '\\')[1] + "@" + $Mailbox
+        }
+        
+        Set-InboxRule -Mailbox $Mailbox -Identity $CurrentRuleName -Name $NewRuleName
+        Write-Host "Renamed rule from '$CurrentRuleName' to '$NewRuleName'"
+    }
+    catch {
+        Write-Error "Failed to rename inbox rule: $_"
+    }
+}
