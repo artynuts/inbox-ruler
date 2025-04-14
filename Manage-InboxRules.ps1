@@ -37,18 +37,10 @@ function New-CustomInboxRule {
         [string]$FromAddress,
         
         [Parameter(Mandatory=$true)]
-        [string]$TargetFolder,
-        
-        [Parameter(Mandatory=$false)]
-        [string]$Mailbox = $null
+        [string]$TargetFolder
     )
       try {
-        if ([string]::IsNullOrEmpty($Mailbox)) {
-            $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
-        }
-        
-        New-InboxRule -Mailbox $Mailbox -Name $RuleName -FromAddressContainsWords $FromAddress -MoveToFolder $TargetFolder
+        New-InboxRule -Name $RuleName -FromAddressContainsWords $FromAddress -MoveToFolder $TargetFolder
         Write-Host "Created new rule: $RuleName"
     }
     catch {
@@ -59,18 +51,10 @@ function New-CustomInboxRule {
 function Remove-CustomInboxRule {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$RuleName,
-        
-        [Parameter(Mandatory=$false)]
-        [string]$Mailbox = $null
+        [string]$RuleName
     )
       try {
-        if ([string]::IsNullOrEmpty($Mailbox)) {
-            $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
-        }
-        
-        Remove-InboxRule -Mailbox $Mailbox -Identity $RuleName -Confirm:$false
+        Remove-InboxRule -Identity $RuleName -Confirm:$false
         Write-Host "Removed rule: $RuleName"
     }
     catch {
@@ -84,18 +68,10 @@ function Rename-CustomInboxRule {
         [string]$CurrentRuleName,
         
         [Parameter(Mandatory=$true)]
-        [string]$NewRuleName,
-        
-        [Parameter(Mandatory=$false)]
-        [string]$Mailbox = $null
+        [string]$NewRuleName
     )
       try {
-        if ([string]::IsNullOrEmpty($Mailbox)) {
-            $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
-        }
-        
-        Set-InboxRule -Mailbox $Mailbox -Identity $CurrentRuleName -Name $NewRuleName
+        Set-InboxRule -Identity $CurrentRuleName -Name $NewRuleName
         Write-Host "Renamed rule from '$CurrentRuleName' to '$NewRuleName'"
     }
     catch {
@@ -103,6 +79,4 @@ function Rename-CustomInboxRule {
     }
 }
 
-function Get-CurrentUser {
-    return [System.Security.Principal.WindowsIdentity]::GetCurrent()
-}
+
