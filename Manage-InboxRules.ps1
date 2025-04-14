@@ -23,11 +23,10 @@ function Get-InboxRules {
         [Parameter(Mandatory=$false)]
         [string]$Mailbox = $null
     )
-    
-    try {
+      try {
         if ([string]::IsNullOrEmpty($Mailbox)) {
             $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name -split '\\')[1] + "@" + $Mailbox
+            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
         }
         
         $rules = Get-InboxRule -Mailbox $Mailbox
@@ -53,11 +52,10 @@ function New-CustomInboxRule {
         [Parameter(Mandatory=$false)]
         [string]$Mailbox = $null
     )
-    
-    try {
+      try {
         if ([string]::IsNullOrEmpty($Mailbox)) {
             $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name -split '\\')[1] + "@" + $Mailbox
+            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
         }
         
         New-InboxRule -Mailbox $Mailbox -Name $RuleName -FromAddressContainsWords $FromAddress -MoveToFolder $TargetFolder
@@ -76,11 +74,10 @@ function Remove-CustomInboxRule {
         [Parameter(Mandatory=$false)]
         [string]$Mailbox = $null
     )
-    
-    try {
+      try {
         if ([string]::IsNullOrEmpty($Mailbox)) {
             $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name -split '\\')[1] + "@" + $Mailbox
+            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
         }
         
         Remove-InboxRule -Mailbox $Mailbox -Identity $RuleName -Confirm:$false
@@ -102,11 +99,10 @@ function Rename-CustomInboxRule {
         [Parameter(Mandatory=$false)]
         [string]$Mailbox = $null
     )
-    
-    try {
+      try {
         if ([string]::IsNullOrEmpty($Mailbox)) {
             $Mailbox = (Get-AcceptedDomain | Where-Object {$_.Default -eq $true}).DomainName
-            $Mailbox = ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name -split '\\')[1] + "@" + $Mailbox
+            $Mailbox = ((Get-CurrentUser).Name -split '\\')[1] + "@" + $Mailbox
         }
         
         Set-InboxRule -Mailbox $Mailbox -Identity $CurrentRuleName -Name $NewRuleName
@@ -115,4 +111,8 @@ function Rename-CustomInboxRule {
     catch {
         Write-Error "Failed to rename inbox rule: $_"
     }
+}
+
+function Get-CurrentUser {
+    return [System.Security.Principal.WindowsIdentity]::GetCurrent()
 }
