@@ -80,11 +80,6 @@ Describe "New-CustomInboxRule" {
             $script:mockParams.FromAddressContainsWords = $FromAddressContainsWords
             $script:mockParams.MoveToFolder = $MoveToFolder
             
-            Write-Verbose "Mock New-InboxRule called with:"
-            Write-Verbose "  Name: $Name"
-            Write-Verbose "  FromAddressContainsWords: $FromAddressContainsWords"
-            Write-Verbose "  MoveToFolder: $MoveToFolder"
-            
             return [PSCustomObject]@{
                 Name = $Name
                 FromAddressContainsWords = $FromAddressContainsWords
