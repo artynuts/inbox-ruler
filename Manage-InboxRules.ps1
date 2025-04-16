@@ -112,14 +112,39 @@ function New-CustomInboxRule {
 function Remove-CustomInboxRule {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$RuleName
+        [string]$RuleName,
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$RemoveAll = $false
     )
-      try {
-        Remove-InboxRule -Identity $RuleName -Confirm:$false
-        Write-Host "Removed rule: $RuleName"
+      
+    try {
+        # Get all rules with the specified name
+        $matchingRules = Get-InboxRule | Where-Object { $_.Name -eq $RuleName }
+        
+        if (-not $matchingRules) {
+            Write-Warning "No rules found with name: $RuleName"
+            return
+        }
+        
+        # If multiple rules found and RemoveAll is not specified
+        if ($matchingRules.Count -gt 1 -and -not $RemoveAll) {
+            Write-Warning "Found $($matchingRules.Count) rules with name '$RuleName'. Use -RemoveAll to remove all matching rules."
+            Write-Host "Matching rules:"
+            $matchingRules | ForEach-Object {
+                Write-Host "- Rule ID: $($_.Identity), From: $($_.FromAddressContainsWords), To Folder: $($_.MoveToFolder)"
+            }
+            return
+        }
+        
+        # Remove all matching rules
+        $matchingRules | ForEach-Object {
+            Remove-InboxRule -Identity $_.Identity -Confirm:$false
+            Write-Host "Removed rule: $($_.Name) (ID: $($_.Identity))"
+        }
     }
     catch {
-        Write-Error "Failed to remove inbox rule: $_"
+        Write-Error "Failed to remove inbox rule(s): $_"
     }
 }
 

@@ -278,74 +278,97 @@ Describe "New-MailboxFolderHierarchy" {
     }
 }
 
-<#
-
 Describe "Remove-CustomInboxRule" {
     BeforeAll {
         Mock Write-Host
+        Mock Write-Warning
         Mock Write-Error
-        Mock Remove-InboxRule
     }
 
-    Context "When removing a rule" {
-        It 'Should remove the specified inbox rule' {
-            Remove-CustomInboxRule -RuleName "TestRule"
+    Context "When removing rules" {
+        BeforeEach {
+            # Reset captured parameters
+            $script:removeInboxRuleCalls = @()
             
-            Should -Invoke Remove-InboxRule -Times 1 -ParameterFilter {
-                $Identity -eq "TestRule" -and
-                $Confirm -eq $false
+            # Mock Get-InboxRule to return test rules
+            Mock Get-InboxRule -MockWith {
+                @(
+                    [PSCustomObject]@{ 
+                        Name = "TestRule"
+                        Identity = "Rule1"
+                        FromAddressContainsWords = "test1@example.com"
+                        MoveToFolder = ":\Inbox\Folder1"
+                    },
+                    [PSCustomObject]@{ 
+                        Name = "TestRule"
+                        Identity = "Rule2"
+                        FromAddressContainsWords = "test2@example.com"
+                        MoveToFolder = ":\Inbox\Folder2"
+                    }
+                )
             }
-            Should -Invoke Write-Host -Times 1 -ParameterFilter {
-                $Message -eq "Removed rule: TestRule"
+            
+            # Mock Remove-InboxRule with parameter capture
+            Mock Remove-InboxRule -MockWith {
+                param($Identity, $Confirm)
+                $script:removeInboxRuleCalls += @{
+                    Identity = $Identity
+                    Confirm = $Confirm
+                }
             }
         }
-
-        It 'Should handle errors when removing a rule fails' {
-            Mock Remove-InboxRule { throw 'Failed to remove rule' }
-            
+        
+        It 'Should warn when multiple rules found without RemoveAll' {
+            # Act
             Remove-CustomInboxRule -RuleName "TestRule"
             
+            # Assert
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+                $Message -like "*Found 2 rules with name 'TestRule'*"
+            }
+            $script:removeInboxRuleCalls.Count | Should -Be 0
+        }
+        
+        It 'Should remove all matching rules when RemoveAll specified' {
+            # Act
+            Remove-CustomInboxRule -RuleName "TestRule" -RemoveAll
+            
+            # Assert
+            $script:removeInboxRuleCalls.Count | Should -Be 2
+            $script:removeInboxRuleCalls[0].Identity | Should -Be "Rule1"
+            $script:removeInboxRuleCalls[1].Identity | Should -Be "Rule2"
+            $script:removeInboxRuleCalls | ForEach-Object {
+                $_.Confirm | Should -Be $false
+            }
+        }
+        
+        It 'Should handle no matching rules' {
+            # Arrange
+            Mock Get-InboxRule -MockWith { @() }
+            
+            # Act
+            Remove-CustomInboxRule -RuleName "NonExistentRule"
+            
+            # Assert
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+                $Message -eq "No rules found with name: NonExistentRule"
+            }
+            $script:removeInboxRuleCalls.Count | Should -Be 0
+        }
+        
+        It 'Should handle rule removal errors' {
+            # Arrange
+            Mock Remove-InboxRule { throw "Failed to remove rule" }
+            
+            # Act
+            Remove-CustomInboxRule -RuleName "TestRule" -RemoveAll
+            
+            # Assert
             Should -Invoke Write-Error -Times 1 -ParameterFilter {
-                $Message -like "*Failed to remove inbox rule: Failed to remove rule*"
+                $Message -like "*Failed to remove inbox rule(s): Failed to remove rule*"
             }
         }
     }
 }
-#>
-
-<#
-
-Describe "Rename-CustomInboxRule" {
-    BeforeAll {
-        Mock Write-Host
-        Mock Write-Error
-        Mock Set-InboxRule
-    }
-
-    Context "When renaming a rule" {
-        It 'Should rename the specified inbox rule' {
-            Rename-CustomInboxRule -CurrentRuleName "OldRule" -NewRuleName "NewRule"
-            
-            Should -Invoke Set-InboxRule -Times 1 -ParameterFilter {
-                $Identity -eq "OldRule" -and
-                $Name -eq "NewRule"
-            }
-            Should -Invoke Write-Host -Times 1 -ParameterFilter {
-                $Message -eq "Renamed rule from 'OldRule' to 'NewRule'"
-            }
-        }
-
-        It 'Should handle errors when renaming a rule fails' {
-            Mock Set-InboxRule { throw 'Failed to rename rule' }
-            
-            Rename-CustomInboxRule -CurrentRuleName "OldRule" -NewRuleName "NewRule"
-            
-            Should -Invoke Write-Error -Times 1 -ParameterFilter {
-                $Message -like "*Failed to rename inbox rule: Failed to rename rule*"
-            }
-        }
-    }
-}
-#>
 
 

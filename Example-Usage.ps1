@@ -2,7 +2,7 @@
 . .\Manage-InboxRules.ps1
 
 # First, connect to Exchange Online
-# Connect-ToExchange
+#Connect-ToExchange
 
 # List all current inbox rules
 #Write-Host "Current inbox rules:"
@@ -35,6 +35,6 @@ New-CustomInboxRule -RuleName "Test Project Updates 7" `
 # Rename-CustomInboxRule -CurrentRuleName "Test Project Updates 3" -NewRuleName "Test Project Updates 3 Renamed"
 
 # Example: Remove rules (commented out for safety)
-# Remove-CustomInboxRule -RuleName "Weekly Newsletter Filter"
-#Remove-CustomInboxRule -RuleName "Project Updates"
+Remove-CustomInboxRule -RuleName "Test Newsletter Filter" -RemoveAll
+Remove-CustomInboxRule -RuleName "Foobar"
 #Remove-CustomInboxRule -RuleName "Important Alerts"
