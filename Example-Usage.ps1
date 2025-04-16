@@ -32,7 +32,10 @@ New-CustomInboxRule -RuleName "Test Project Updates 7" `
     -TargetFolder "Inbox\TestWork\Project 7"
 
 # Example: Rename a rule
-# Rename-CustomInboxRule -CurrentRuleName "Test Project Updates 3" -NewRuleName "Test Project Updates 3 Renamed"
+Rename-CustomInboxRule -CurrentRuleName "Test Project Updates" -NewRuleName "Test Project Updates Renamed"
+Rename-CustomInboxRule -CurrentRuleName "Foobar" -NewRuleName "Foobar Renamed"
+Rename-CustomInboxRule -CurrentRuleName "Test Project Updates 3 Renamed" -NewRuleName "Test Project Updates 3 Renamed Again"
+Rename-CustomInboxRule -CurrentRuleName "Test Project Updates 2" -NewRuleName "Test Project Updates 1"
 
 # Example: Remove rules (commented out for safety)
 Remove-CustomInboxRule -RuleName "Test Newsletter Filter" -RemoveAll

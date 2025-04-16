@@ -371,4 +371,121 @@ Describe "Remove-CustomInboxRule" {
     }
 }
 
+Describe "Rename-CustomInboxRule" {
+    BeforeAll {
+        Mock Write-Host
+        Mock Write-Warning
+        Mock Write-Error
+    }
+
+    Context "When renaming rules" {
+        BeforeEach {
+            # Reset captured parameters
+            $script:setInboxRuleCalls = @()
+            
+            # Mock Get-InboxRule to return test rules
+            Mock Get-InboxRule -MockWith {
+                @(
+                    [PSCustomObject]@{ 
+                        Name = "OldRule"
+                        Identity = "Rule1"
+                        FromAddressContainsWords = "test1@example.com"
+                        MoveToFolder = ":\Inbox\Folder1"
+                    },
+                    [PSCustomObject]@{ 
+                        Name = "OldRule"
+                        Identity = "Rule2"
+                        FromAddressContainsWords = "test2@example.com"
+                        MoveToFolder = ":\Inbox\Folder2"
+                    }
+                )
+            }
+            
+            # Mock Set-InboxRule with parameter capture
+            Mock Set-InboxRule -MockWith {
+                param($Identity, $Name)
+                $script:setInboxRuleCalls += @{
+                    Identity = $Identity
+                    Name = $Name
+                }
+            }
+        }
+        
+        It 'Should warn when multiple rules found without RenameAll' {
+            # Act
+            Rename-CustomInboxRule -CurrentRuleName "OldRule" -NewRuleName "NewRule"
+            
+            # Assert
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+                $Message -like "*Found 2 rules with name 'OldRule'*"
+            }
+            $script:setInboxRuleCalls.Count | Should -Be 0
+        }
+        
+        It 'Should rename all matching rules when RenameAll specified' {
+            # Act
+            Rename-CustomInboxRule -CurrentRuleName "OldRule" -NewRuleName "NewRule" -RenameAll
+            
+            # Assert
+            $script:setInboxRuleCalls.Count | Should -Be 2
+            $script:setInboxRuleCalls[0].Identity | Should -Be "Rule1"
+            $script:setInboxRuleCalls[0].Name | Should -Be "NewRule"
+            $script:setInboxRuleCalls[1].Identity | Should -Be "Rule2"
+            $script:setInboxRuleCalls[1].Name | Should -Be "NewRule"
+        }
+        
+        It 'Should handle no matching rules' {
+            # Arrange
+            Mock Get-InboxRule -MockWith { @() }
+            
+            # Act
+            Rename-CustomInboxRule -CurrentRuleName "NonExistentRule" -NewRuleName "NewRule"
+            
+            # Assert
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+                $Message -eq "No rules found with name: NonExistentRule"
+            }
+            $script:setInboxRuleCalls.Count | Should -Be 0
+        }
+        
+        It 'Should handle when target name already exists' {
+            # Arrange
+            Mock Get-InboxRule -MockWith {
+                @(
+                    [PSCustomObject]@{ 
+                        Name = "OldRule"
+                        Identity = "Rule1"
+                    },
+                    [PSCustomObject]@{ 
+                        Name = "NewRule"
+                        Identity = "Rule2"
+                    }
+                )
+            }
+            
+            # Act
+            Rename-CustomInboxRule -CurrentRuleName "OldRule" -NewRuleName "NewRule"
+            
+            # Assert
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+                $Message -eq "A rule with name 'NewRule' already exists. Please choose a different name."
+            }
+            $script:setInboxRuleCalls.Count | Should -Be 0
+        }
+        
+        It 'Should handle renaming errors' {
+            # Arrange
+            Mock Set-InboxRule { throw "Failed to rename rule" }
+            
+            # Act
+            Rename-CustomInboxRule -CurrentRuleName "OldRule" -NewRuleName "NewRule" -RenameAll
+            
+            # Assert
+            Should -Invoke Write-Error -Times 1 -ParameterFilter {
+                $Message -like "*Failed to rename inbox rule(s): Failed to rename rule*"
+            }
+        }
+    }
+}
+
 

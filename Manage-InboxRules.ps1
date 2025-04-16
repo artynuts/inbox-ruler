@@ -154,14 +154,45 @@ function Rename-CustomInboxRule {
         [string]$CurrentRuleName,
         
         [Parameter(Mandatory=$true)]
-        [string]$NewRuleName
+        [string]$NewRuleName,
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$RenameAll = $false
     )
-      try {
-        Set-InboxRule -Identity $CurrentRuleName -Name $NewRuleName
-        Write-Host "Renamed rule from '$CurrentRuleName' to '$NewRuleName'"
+    try {
+        # Get all rules with the current name
+        $matchingRules = Get-InboxRule | Where-Object { $_.Name -eq $CurrentRuleName }
+        
+        if (-not $matchingRules) {
+            Write-Warning "No rules found with name: $CurrentRuleName"
+            return
+        }
+        
+        # If multiple rules found and RenameAll is not specified
+        if ($matchingRules.Count -gt 1 -and -not $RenameAll) {
+            Write-Warning "Found $($matchingRules.Count) rules with name '$CurrentRuleName'. Use -RenameAll to rename all matching rules."
+            Write-Host "Matching rules:"
+            $matchingRules | ForEach-Object {
+                Write-Host "- Rule ID: $($_.Identity), From: $($_.FromAddressContainsWords), To Folder: $($_.MoveToFolder)"
+            }
+            return
+        }
+        
+        # Check if any rule with the new name already exists
+        $existingNewName = Get-InboxRule | Where-Object { $_.Name -eq $NewRuleName }
+        if ($existingNewName) {
+            Write-Warning "A rule with name '$NewRuleName' already exists. Please choose a different name."
+            return
+        }
+        
+        # Rename all matching rules
+        $matchingRules | ForEach-Object {
+            Set-InboxRule -Identity $_.Identity -Name $NewRuleName
+            Write-Host "Renamed rule from '$CurrentRuleName' to '$NewRuleName' (ID: $($_.Identity))"
+        }
     }
     catch {
-        Write-Error "Failed to rename inbox rule: $_"
+        Write-Error "Failed to rename inbox rule(s): $_"
     }
 }
 
