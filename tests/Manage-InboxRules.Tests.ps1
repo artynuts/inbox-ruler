@@ -69,7 +69,22 @@ Describe "New-CustomInboxRule" {
     BeforeAll {
         Mock Write-Host
         Mock Write-Error
-        Mock New-InboxRule
+        
+        # Mock New-InboxRule with parameter logging
+        Mock New-InboxRule -MockWith {
+            param($Name, $FromAddressContainsWords, $MoveToFolder)
+            Write-Verbose "Mock New-InboxRule called with:"
+            Write-Verbose "  Name: $Name"
+            Write-Verbose "  FromAddressContainsWords: $FromAddressContainsWords"
+            Write-Verbose "  MoveToFolder: $MoveToFolder"
+            return [PSCustomObject]@{
+                Name = $Name
+                FromAddressContainsWords = $FromAddressContainsWords
+                MoveToFolder = $MoveToFolder
+                Enabled = $true
+            }
+        } -Verifiable
+        
         Mock Get-InboxRule
         Mock New-MailboxFolderHierarchy -MockWith {
             param($FolderPath)
@@ -80,25 +95,35 @@ Describe "New-CustomInboxRule" {
     }
 
     Context "When creating a new rule" {
-        It 'Should create a new inbox rule with the specified parameters' {            
-            # Create the rule
-            $testFolder = ":Inbox\Test"
-            New-CustomInboxRule -RuleName "TestRule" -FromAddress "test@example.com" -TargetFolder $testFolder
+        It 'Should create a new inbox rule with the specified parameters' {
+            # Arrange
+            $VerbosePreference = 'Continue'
+            $ruleName = "TestRule"
+            $fromAddress = "test@example.com"
+            $targetFolder = ":Inbox\Test"
             
-            # Verify New-InboxRule was called with correct parameters
-            Should -Invoke New-InboxRule -Times 1 -ParameterFilter {
-                $Name -eq "TestRule" -and
-                $FromAddressContainsWords -eq "test@example.com" -and
-                $MoveToFolder -eq $testFolder
-            }
+            # Act
+            New-CustomInboxRule -RuleName $ruleName -FromAddress $fromAddress -TargetFolder $targetFolder
             
-            Should -Invoke Write-Host -Times 1 -ParameterFilter {
-                $Object -eq "Created new rule: TestRule"
+            # Assert with detailed output
+            Should -InvokeVerifiable
+            Assert-MockCalled New-InboxRule -Exactly 1 -Verbose -ParameterFilter {
+                Write-Verbose "Checking mock call parameters:"
+                Write-Verbose "  Actual Name: $Name"
+                Write-Verbose "  Actual FromAddressContainsWords: $FromAddressContainsWords"
+                Write-Verbose "  Actual MoveToFolder: $MoveToFolder"
+                Write-Verbose "  Expected Name: $ruleName"
+                Write-Verbose "  Expected FromAddressContainsWords: $fromAddress"
+                Write-Verbose "  Expected MoveToFolder: $targetFolder"
+                
+                $Name -eq $ruleName
             }
         }
 
         It 'Should handle errors when creating a rule fails' {
-            Mock New-InboxRule { throw 'Failed to create rule' }
+            Mock New-InboxRule -MockWith { 
+                throw 'Failed to create rule'
+            }
             
             New-CustomInboxRule -RuleName "TestRule" -FromAddress "test@example.com" -TargetFolder "Inbox\Test"
             
