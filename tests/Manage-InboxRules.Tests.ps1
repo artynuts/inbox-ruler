@@ -183,6 +183,110 @@ Describe "New-CustomInboxRule" {      BeforeAll {
     }
 }
 
+Describe "New-MailboxFolderHierarchy" {
+    BeforeAll {
+        Mock Write-Host
+        Mock Write-Error
+        
+        # Add mocks for Exchange cmdlets if they don't exist
+        if (!(Get-Command Get-MailboxFolder -ErrorAction SilentlyContinue)) {
+            function Get-MailboxFolder {}
+        }
+        if (!(Get-Command New-MailboxFolder -ErrorAction SilentlyContinue)) {
+            function New-MailboxFolder {}
+        }
+        
+        # Default mock behavior
+        Mock Get-MailboxFolder { throw "Folder not found" }
+        Mock New-MailboxFolder -MockWith {
+            param($Parent, $Name)
+            return [PSCustomObject]@{
+                Identity = "$Parent\$Name"
+            }
+        }
+    }
+    
+    Context "When creating folder hierarchy" {
+        It 'Should normalize folder path to start with :\' {
+            # Arrange
+            $expectedPath = ":\Inbox\TestFolder"
+            
+            # Act
+            $result = New-MailboxFolderHierarchy -FolderPath "Inbox\TestFolder"
+            
+            # Assert
+            $result.Identity | Should -Be $expectedPath
+        }
+        
+        It 'Should create nested folder structure' {
+            # Arrange
+            $folderPath = ":\Inbox\Parent\Child\Grandchild"
+            
+            # Act
+            $result = New-MailboxFolderHierarchy -FolderPath $folderPath
+            
+            # Assert
+            Should -Invoke New-MailboxFolder -Times 4
+            $result.Identity | Should -Be $folderPath
+        }
+          It 'Should skip existing folders' {
+            # Arrange
+            # Mock the root folder
+            Mock Get-MailboxFolder -ParameterFilter { 
+                $Identity -eq ":" 
+            } -MockWith {
+                return [PSCustomObject]@{
+                    Identity = ":"
+                }
+            }
+            
+            # Mock the Inbox folder
+            Mock Get-MailboxFolder -ParameterFilter { 
+                $Identity -eq ":\Inbox" 
+            } -MockWith {
+                return [PSCustomObject]@{
+                    Identity = ":\Inbox"
+                }
+            }
+            
+            # Mock the Existing folder
+            Mock Get-MailboxFolder -ParameterFilter { 
+                $Identity -eq ":\Inbox\Existing" 
+            } -MockWith {
+                return [PSCustomObject]@{
+                    Identity = ":\Inbox\Existing"
+                }
+            }
+            
+            # Mock the New folder to not exist
+            Mock Get-MailboxFolder -ParameterFilter { 
+                $Identity -eq ":\Inbox\Existing\New" 
+            } -MockWith { 
+                throw "Folder not found" 
+            }
+            
+            # Act
+            $result = New-MailboxFolderHierarchy -FolderPath ":\Inbox\Existing\New"
+            
+            # Assert
+            Should -Invoke New-MailboxFolder -Times 1 -ParameterFilter {
+                Write-Verbose "New-MailboxFolder called with Parent: $Parent, Name: $Name"
+                $Parent -eq ":\Inbox\Existing" -and $Name -eq "New"
+            }
+            $result.Identity | Should -Be ":\Inbox\Existing\New"
+        }
+        
+        It 'Should handle folder creation errors' {
+            # Arrange
+            Mock New-MailboxFolder { throw "Access denied" }
+            
+            # Act & Assert
+            { New-MailboxFolderHierarchy -FolderPath ":\Inbox\Test" } | 
+                Should -Throw "Failed to create folder hierarchy ':\Inbox\Test': Failed to create folder ':\Inbox': Access denied"
+        }
+    }
+}
+
 <#
 
 Describe "Remove-CustomInboxRule" {
