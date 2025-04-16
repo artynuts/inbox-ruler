@@ -80,11 +80,17 @@ Describe "New-CustomInboxRule" {
     }
 
     Context "When creating a new rule" {
-        It 'Should create a new inbox rule with the specified parameters' {
+        It 'Should create a new inbox rule with the specified parameters' {            
             # Create the rule
             $testFolder = ":Inbox\Test"
-            New-CustomInboxRule -RuleName "TestRule" -FromAddress "test@example.com" -TargetFolder $testFolder            # Verify New-InboxRule was called with correct rule name
-            Should -Invoke New-InboxRule -Times 1
+            New-CustomInboxRule -RuleName "TestRule" -FromAddress "test@example.com" -TargetFolder $testFolder
+            
+            # Verify New-InboxRule was called with correct parameters
+            Should -Invoke New-InboxRule -Times 1 -ParameterFilter {
+                $Name -eq "TestRule" -and
+                $FromAddressContainsWords -eq "test@example.com" -and
+                $MoveToFolder -eq $testFolder
+            }
             
             Should -Invoke Write-Host -Times 1 -ParameterFilter {
                 $Object -eq "Created new rule: TestRule"
