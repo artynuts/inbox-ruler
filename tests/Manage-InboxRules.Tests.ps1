@@ -65,11 +65,27 @@ Describe "Get-InboxRules" {
     }
 }
 
-Describe "New-CustomInboxRule" {    
-    BeforeAll {
+Describe "New-CustomInboxRule" {      BeforeAll {
         Mock Write-Host
         Mock Write-Error
         $script:mockParams = @{
+        }
+        
+        # Add mock for Get-MailboxFolder
+        if (!(Get-Command Get-MailboxFolder -ErrorAction SilentlyContinue)) {
+            function Get-MailboxFolder {}
+        }
+        Mock Get-MailboxFolder { throw "Folder not found" }
+        
+        # Add mock for New-MailboxFolder
+        if (!(Get-Command New-MailboxFolder -ErrorAction SilentlyContinue)) {
+            function New-MailboxFolder {}
+        }
+        Mock New-MailboxFolder -MockWith {
+            param($Parent, $Name)
+            return [PSCustomObject]@{
+                Identity = "$Parent\$Name"
+            }
         }
         
         # Mock New-InboxRule with parameter capture
@@ -130,6 +146,39 @@ Describe "New-CustomInboxRule" {
             Should -Invoke Write-Error -Times 1 -ParameterFilter {
                 $Message -like "*Failed to create inbox rule: Failed to create rule*"
             }
+        }
+        
+        It 'Should create folder hierarchy before creating rule' {
+            # Arrange
+            $ruleName = "TestRule"
+            $fromAddress = "test@example.com"
+            $targetFolder = ":Inbox\NewFolder\SubFolder"
+            
+            # Mock Get-MailboxFolder to simulate folder doesn't exist
+            Mock Get-MailboxFolder -MockWith { throw "Folder not found" }
+            Mock New-MailboxFolder -MockWith {
+                param($Parent, $Name)
+                return [PSCustomObject]@{
+                    Identity = "$Parent\$Name"
+                }
+            }
+            
+            # Act
+            New-CustomInboxRule -RuleName $ruleName -FromAddress $fromAddress -TargetFolder $targetFolder
+            
+            # Assert
+            Should -Invoke New-MailboxFolderHierarchy -Times 1 -ParameterFilter {
+                $FolderPath -eq $targetFolder
+            }
+            
+            $script:mockParams.Name | Should -Be $ruleName
+            $script:mockParams.FromAddressContainsWords | Should -Be $fromAddress
+            $script:mockParams.MoveToFolder | Should -Be $targetFolder
+            
+            Should -Invoke Write-Host -Times 1 -ParameterFilter {
+                $Object -eq "Creating new inbox rule: $ruleName"
+            }
+            Should -Invoke New-InboxRule -Times 1
         }
     }
 }
