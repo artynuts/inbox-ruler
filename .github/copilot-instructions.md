@@ -12,11 +12,6 @@ inbox-ruler is a PowerShell module for managing Exchange/Outlook inbox rules pro
 
 ## Code Style Guidelines
 
-### Editor Conventions
-
-- When making file edits, preserve the original whitespace and newline formatting, especially around block comments and structural elements.
-- For block comments, always include a newline after the opening comment marker and before the code to maintain readability.
-
 ### PowerShell Conventions
 
 - Use PascalCase for function names (e.g., `New-CustomInboxRule`)
