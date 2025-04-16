@@ -42,29 +42,31 @@ function New-MailboxFolderHierarchy {
 
         # Split the path into segments and ensure each segment exists
         $segments = $FolderPath.Split('\')
-        $currentPath = $segments[0] # Start with ":"
+        $currentPath = $segments[0] # Start with ":"        
         
         # Create each segment of the path if it doesn't exist
-        for ($i = 1; $i -lt $segments.Count; $i++) {
+        $folderObject = $null
+        for ($i = 1; $i -lt $segments.Count; $i++) {            
             $parentPath = $currentPath
             $currentPath = "$currentPath\$($segments[$i])"
 
-              try {
+            try {
+                # Try to get existing folder
                 $folderObject = Get-MailboxFolder -Identity $currentPath -ErrorAction Stop
                 Write-Host "Folder exists: $currentPath"
             }
             catch {
-                Write-Host "Creating folder: $currentPath"                  
+                Write-Host "Creating folder: $currentPath"
                 try {
+                    # Create new folder and use its return value directly
                     $folderObject = New-MailboxFolder -Parent $parentPath -Name $segments[$i]
-                    # Wait-MailboxFolderCreation -FolderPath $currentPath                    
+                    Write-Host "Successfully created folder: (Identity: $($folderObject.Identity))"
                 }
                 catch {
                     throw "Failed to create folder '$currentPath': $_"
                 }
             }
         }
-        Write-Host "Folder hierarchy created: $currentPath"
         return $folderObject
     }
     catch {
@@ -138,39 +140,6 @@ function Rename-CustomInboxRule {
     }
 }
 
-function Wait-MailboxFolderCreation {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$FolderPath,
-        
-        [Parameter(Mandatory=$false)]
-        [int]$TimeoutSeconds = 30
-    )
-    
-    try {
-        $timeout = [DateTime]::Now.AddSeconds($TimeoutSeconds)
-        $folderExists = $false
-        
-        while (-not $folderExists -and [DateTime]::Now -lt $timeout) {
-            try {
-                $null = Get-MailboxFolder -Identity $FolderPath -ErrorAction Stop
-                $folderExists = $true
-                Write-Host "Confirmed folder creation: $FolderPath"
-            }
-            catch {
-                Start-Sleep -Seconds 1
-            }
-        }
-        
-        if (-not $folderExists) {
-            throw "Timeout waiting for folder '$FolderPath' to be created"
-        }
-        
-        return $true
-    }
-    catch {
-        throw "Failed to confirm folder creation '$FolderPath': $_"
-    }
-}
+
 
 

@@ -5,7 +5,7 @@
     Description = 'A PowerShell module to manage Exchange/Outlook inbox rules programmatically'
     PowerShellVersion = '5.1'
     RequiredModules = @('ExchangeOnlineManagement')
-    FunctionsToExport = @('Connect-ToExchange', 'Get-InboxRules', 'New-CustomInboxRule', 'Remove-CustomInboxRule', 'Rename-CustomInboxRule', 'New-MailboxFolderHierarchy', 'Wait-MailboxFolderCreation')
+    FunctionsToExport = @('Connect-ToExchange', 'Get-InboxRules', 'New-CustomInboxRule', 'Remove-CustomInboxRule', 'Rename-CustomInboxRule', 'New-MailboxFolderHierarchy')
     CmdletsToExport = @()
     VariablesToExport = '*'
     AliasesToExport = @()
