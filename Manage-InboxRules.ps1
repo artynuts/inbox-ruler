@@ -32,7 +32,8 @@ function New-MailboxFolderHierarchy {
     param(
         [Parameter(Mandatory=$true)]
         [string]$FolderPath
-    )    try {
+    )    
+    try {
         
         # Ensure the folder path is in the correct format
         if (-not $FolderPath.StartsWith(':\')) {
@@ -47,23 +48,24 @@ function New-MailboxFolderHierarchy {
         for ($i = 1; $i -lt $segments.Count; $i++) {
             $parentPath = $currentPath
             $currentPath = "$currentPath\$($segments[$i])"
-            
-            try {
-                $null = Get-MailboxFolder -Identity $currentPath -ErrorAction Stop
+
+              try {
+                $folderObject = Get-MailboxFolder -Identity $currentPath -ErrorAction Stop
                 Write-Host "Folder exists: $currentPath"
             }
             catch {
                 Write-Host "Creating folder: $currentPath"                  
                 try {
-                    New-MailboxFolder -Parent $parentPath -Name $segments[$i]
-                    Wait-MailboxFolderCreation -FolderPath $currentPath
+                    $folderObject = New-MailboxFolder -Parent $parentPath -Name $segments[$i]
+                    # Wait-MailboxFolderCreation -FolderPath $currentPath                    
                 }
                 catch {
                     throw "Failed to create folder '$currentPath': $_"
                 }
             }
         }
-        return $FolderPath
+        Write-Host "Folder hierarchy created: $currentPath"
+        return $folderObject
     }
     catch {
         throw "Failed to create folder hierarchy '$FolderPath': $_"
@@ -88,15 +90,16 @@ function New-CustomInboxRule {
         if ($existingRule) {
             Write-Warning "Rule '$RuleName' already exists. Use Remove-CustomInboxRule first if you want to recreate it."
             return
-        }
-
+        }        
+        
         # Create the folder hierarchy if it doesn't exist
-        $TargetFolder = New-MailboxFolderHierarchy -FolderPath $TargetFolder
+        $folderObject = New-MailboxFolderHierarchy -FolderPath $TargetFolder
+        $targetFolderUpdated = $folderObject.Identity
 
         # Create the inbox rule
         Write-Host "Creating new inbox rule: $RuleName"
-        Write-Host "moving emails from: $FromAddress to folder: $TargetFolder"
-        New-InboxRule -Name $RuleName -FromAddressContainsWords $FromAddress -MoveToFolder $TargetFolder
+        Write-Host "moving emails from: $FromAddress to folder: $targetFolderUpdated"
+        New-InboxRule -Name $RuleName -FromAddressContainsWords $FromAddress -MoveToFolder $targetFolderUpdated
         Write-Host "Created new rule: $RuleName"
     }
     catch {
