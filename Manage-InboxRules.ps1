@@ -196,6 +196,80 @@ function Rename-CustomInboxRule {
     }
 }
 
+function Test-InboxRuleHygiene {
+    <#
+    .SYNOPSIS
+        Verifies the hygiene of inbox rules by checking for various issues.
+    
+    .DESCRIPTION
+        This function analyzes existing inbox rules and reports any hygiene issues found,
+        such as duplicate rule names.
+    
+    .EXAMPLE
+        Test-InboxRuleHygiene
+        
+        Checks all inbox rules for hygiene issues and reports any problems found.
+    
+    .OUTPUTS
+        [PSCustomObject[]] Array of hygiene issues found, with properties:
+        - IssueType: The type of hygiene issue (e.g., "DuplicateRuleName")
+        - Description: Detailed description of the issue
+        - AffectedRules: Array of rule names or IDs affected by the issue
+    #>
+    
+    try {
+        $rules = Get-InboxRules
+        if (-not $rules) {
+            Write-Warning "No inbox rules found to analyze."
+            return @()
+        }
+
+        $issues = @()
+        
+        # Check for duplicate rule names
+        $ruleGroups = $rules | Group-Object -Property Name
+        $duplicateRules = $ruleGroups | Where-Object { $_.Count -gt 1 }
+        
+        foreach ($duplicate in $duplicateRules) {
+            $issues += [PSCustomObject]@{
+                IssueType = "DuplicateRuleName"
+                Description = "Found $($duplicate.Count) rules with the same name: '$($duplicate.Name)'"
+                AffectedRules = $duplicate.Group | ForEach-Object { 
+                    [PSCustomObject]@{
+                        Name = $_.Name
+                        Identity = $_.Identity
+                        FromAddress = $_.FromAddressContainsWords
+                        TargetFolder = $_.MoveToFolder
+                    }
+                }
+            }
+        }
+        
+        # Return results
+        if ($issues.Count -eq 0) {
+            Write-Host "No rule hygiene issues found."
+        } else {
+            Write-Warning "Found $($issues.Count) rule hygiene issue(s)."
+            foreach ($issue in $issues) {
+                Write-Host "`nIssue: $($issue.Description)"
+                Write-Host "Affected Rules:"
+                $issue.AffectedRules | ForEach-Object {
+                    Write-Host "  - Rule ID: $($_.Identity)"
+                    Write-Host "    Name: $($_.Name)"
+                    Write-Host "    From: $($_.FromAddress)"
+                    Write-Host "    To Folder: $($_.TargetFolder)"
+                }
+            }
+        }
+        
+        return $issues
+    }
+    catch {
+        Write-Error "Failed to analyze inbox rules: $_"
+        return $null
+    }
+}
+
 
 
 

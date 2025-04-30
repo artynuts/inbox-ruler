@@ -488,4 +488,105 @@ Describe "Rename-CustomInboxRule" {
     }
 }
 
+Describe "Test-InboxRuleHygiene" {
+    BeforeAll {
+        Mock Write-Host
+        Mock Write-Warning
+        Mock Write-Error
+    }
+
+    Context "When checking rule hygiene" {
+        BeforeEach {
+            # Reset mocks for each test
+            Mock Get-InboxRules -MockWith {
+                @(
+                    [PSCustomObject]@{ 
+                        Name = "DuplicateRule"
+                        Identity = "Rule1"
+                        FromAddressContainsWords = "test1@example.com"
+                        MoveToFolder = ":\Inbox\Folder1"
+                    },
+                    [PSCustomObject]@{ 
+                        Name = "DuplicateRule"
+                        Identity = "Rule2"
+                        FromAddressContainsWords = "test2@example.com"
+                        MoveToFolder = ":\Inbox\Folder2"
+                    },
+                    [PSCustomObject]@{ 
+                        Name = "UniqueRule"
+                        Identity = "Rule3"
+                        FromAddressContainsWords = "test3@example.com"
+                        MoveToFolder = ":\Inbox\Folder3"
+                    }
+                )
+            }
+        }
+        
+        It 'Should detect duplicate rule names' {
+            # Act
+            $issues = Test-InboxRuleHygiene
+
+            # Assert
+            $issues.Count | Should -Be 1
+            $issues[0].IssueType | Should -Be "DuplicateRuleName"
+            $issues[0].AffectedRules.Count | Should -Be 2
+            $issues[0].AffectedRules[0].Name | Should -Be "DuplicateRule"
+        }
+        
+        It 'Should handle no rules scenario' {
+            # Arrange
+            Mock Get-InboxRules -MockWith { $null }
+            
+            # Act
+            $issues = Test-InboxRuleHygiene
+            
+            # Assert
+            $issues.Count | Should -Be 0
+            Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+                $Message -eq "No inbox rules found to analyze."
+            }
+        }
+        
+        It 'Should handle no issues found' {
+            # Arrange
+            Mock Get-InboxRules -MockWith {
+                @(
+                    [PSCustomObject]@{ 
+                        Name = "UniqueRule1"
+                        Identity = "Rule1"
+                    },
+                    [PSCustomObject]@{ 
+                        Name = "UniqueRule2"
+                        Identity = "Rule2"
+                    }
+                )
+            }
+            
+            # Act
+            $issues = Test-InboxRuleHygiene
+            
+            # Assert
+            $issues.Count | Should -Be 0
+            Should -Invoke Write-Host -Times 1 -ParameterFilter {
+                $Object -eq "No rule hygiene issues found."
+            }
+        }
+        
+        It 'Should handle errors gracefully' {
+            # Arrange
+            Mock Get-InboxRules { throw "Access denied" }
+            
+            # Act
+            $result = Test-InboxRuleHygiene
+            
+            # Assert
+            $result | Should -Be $null
+            Should -Invoke Write-Error -Times 1 -ParameterFilter {
+                $Message -like "*Failed to analyze inbox rules: Access denied*"
+            }
+        }
+    }
+}
+
+
 
