@@ -358,8 +358,17 @@ function Get-InboxRuleDescription {
                 if ($recipients) {
                     $description += "To $recipients "
                 }
+            }  
+
+            # Handle subject conditions
+            if ($Rule.SubjectContainsWords) {
+                $subjects = $Rule.SubjectContainsWords | Where-Object { $_ } | Select-Object -Unique
+                if ($subjects) {
+                    $subjectText = $subjects -join " or "
+                    $description += "Subject '$subjectText' "
+                }
             }
-            
+
             # Add destination folder if present
             if ($Rule.MoveToFolder) {
                 # Clean up folder path for display
