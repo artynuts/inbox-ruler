@@ -1,0 +1,70 @@
+# PowerShell Module specific
+*.psd1_bak
+*.psm1_bak
+
+# VS Code workspace settings
+.vscode/
+*.code-workspace
+
+# PowerShell Studio
+*.psproj
+*.psprojs
+*.pssln
+*.psf
+
+# Package management
+packages/
+modules/
+
+# Test results
+TestResults/
+test-results.xml
+coverage.xml
+
+# Build output
+out/
+build/
+release/
+
+# Documentation generation
+docs/_site/
+help/
+
+# Environment-specific files
+*.env
+*.local
+*.local.*
+
+# Certificates and secrets
+*.pfx
+*.cer
+*.key
+*.pem
+*.crt
+
+# Logs
+logs/
+*.log
+
+# Windows thumbnail cache files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+
+# Windows Folder config file
+[Dd]esktop.ini
+
+# Windows Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux system files
+*~
+.directory
+.Trash-*
