@@ -441,7 +441,7 @@ function Get-InboxRuleDetails {
             # Create a cleaned up object with non-empty properties
             $cleanedRule = [ordered]@{
                 Name = $obj.Name
-                Description = ($obj | Get-InboxRuleDescription)
+                ShortDescription = ($obj | Get-InboxRuleDescription)
             }
             
             $obj.PSObject.Properties | 
