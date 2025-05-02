@@ -253,11 +253,11 @@ function Test-InboxRuleHygiene {
             foreach ($issue in $issues) {
                 Write-Host "`nIssue: $($issue.Description)"
                 Write-Host "Affected Rules:"
-                $issue.AffectedRules | ForEach-Object {
+                $issue.AffectedRules | ForEach-Object {                    
                     Write-Host "  - Rule ID: $($_.Identity)"
                     Write-Host "    Name: $($_.Name)"
-                    Write-Host "    From: $($_.FromAddress)"
-                    Write-Host "    To Folder: $($_.TargetFolder)"
+                    $description = $_ | Get-InboxRuleDescription
+                    Write-Host "    Description: $description"
                 }
             }
         }
@@ -267,6 +267,82 @@ function Test-InboxRuleHygiene {
     catch {
         Write-Error "Failed to analyze inbox rules: $_"
         return $null
+    }
+}
+
+function Get-InboxRuleDescription {
+    <#
+    .SYNOPSIS
+        Generates a friendly description for an inbox rule.
+    
+    .DESCRIPTION
+        This function analyzes an inbox rule's properties and generates a human-readable
+        description of what the rule does.
+    
+    .PARAMETER Rule
+        The inbox rule object to generate a description for.
+    
+    .EXAMPLE
+        Get-InboxRule | Get-InboxRuleDescription
+        
+        Generates descriptions for all inbox rules.
+    
+    .OUTPUTS
+        [string] A friendly description of the rule's function.
+    #>
+    param(
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [PSObject]$Rule
+    )
+    
+    process {
+        try {
+            $description = ""
+            
+            # Handle rules based on sender
+            if ($Rule.FromAddressContainsWords) {
+                $senders = $Rule.FromAddressContainsWords -join ", "
+                $description += "From $senders "
+            }
+            
+            # Handle rules based on recipient
+            if ($Rule.SentToAddressContainsWords) {
+                $recipients = $Rule.SentToAddressContainsWords -join ", "
+                $description += "To $recipients "
+            }
+            
+            # Add destination folder if present
+            if ($Rule.MoveToFolder) {
+                # Clean up folder path for display
+                $folderName = $Rule.MoveToFolder -replace '^:\\?', ''
+                $description += "> $folderName "
+            }
+            
+            # Handle other common rule actions
+            if ($Rule.DeleteMessage) {
+                $description += "> Delete "
+            }
+            if ($Rule.MarkAsRead) {
+                $description += "> Mark as Read "
+            }
+            if ($Rule.MarkImportance -eq "High") {
+                $description += "> Mark Important "
+            }
+            if ($Rule.FlagMessage) {
+                $description += "> Flag "
+            }
+            
+            # Add disabled status if applicable
+            if (-not $Rule.Enabled) {
+                $description += "(Disabled) "
+            }
+            
+            return $description.Trim()
+        }
+        catch {
+            Write-Error "Failed to generate rule description: $_"
+            return "Description unavailable"
+        }
     }
 }
 
