@@ -270,6 +270,29 @@ function Test-InboxRuleHygiene {
     }
 }
 
+function Clean-ExchangeAddress {
+    param(
+        [Parameter(ValueFromPipeline=$true)]
+        [string]$Address
+    )
+    process {
+        if (-not $Address) { return $null }
+        
+        # Extract display name if present in format "Display Name <email@domain.com>"
+        if ($Address -match '^"?([^"]+)"?\s*\[.+\]$') {
+            return $Matches[1].Trim()
+        }
+        # If it's just an Exchange URL without display name, return null
+        elseif ($Address -match '^\[.+\]$') {
+            return $null
+        }
+        # Return the original address if no special formatting needed
+        else {
+            return $Address
+        }
+    }
+}
+
 function Get-InboxRuleDescription {
     <#
     .SYNOPSIS
@@ -300,15 +323,41 @@ function Get-InboxRuleDescription {
             $description = ""
             
             # Handle rules based on sender
+            $fromAddresses = @()
+            if ($Rule.From) {
+                $fromAddresses += $Rule.From
+            }
             if ($Rule.FromAddressContainsWords) {
-                $senders = $Rule.FromAddressContainsWords -join ", "
-                $description += "From $senders "
+                $fromAddresses += $Rule.FromAddressContainsWords
+            }
+            if ($fromAddresses) {
+                $senders = $fromAddresses | 
+                    ForEach-Object { Clean-ExchangeAddress $_ } | 
+                    Where-Object { $_ } | 
+                    Select-Object -Unique | 
+                    Join-String -Separator ", "
+                if ($senders) {
+                    $description += "From $senders "
+                }
             }
             
             # Handle rules based on recipient
+            $toAddresses = @()
+            if ($Rule.SentTo) {
+                $toAddresses += $Rule.SentTo
+            }
             if ($Rule.SentToAddressContainsWords) {
-                $recipients = $Rule.SentToAddressContainsWords -join ", "
-                $description += "To $recipients "
+                $toAddresses += $Rule.SentToAddressContainsWords
+            }
+            if ($toAddresses) {
+                $recipients = $toAddresses | 
+                    ForEach-Object { Clean-ExchangeAddress $_ } | 
+                    Where-Object { $_ } | 
+                    Select-Object -Unique | 
+                    Join-String -Separator ", "
+                if ($recipients) {
+                    $description += "To $recipients "
+                }
             }
             
             # Add destination folder if present
@@ -343,6 +392,102 @@ function Get-InboxRuleDescription {
             Write-Error "Failed to generate rule description: $_"
             return "Description unavailable"
         }
+    }
+}
+
+function Get-InboxRuleDetails {
+    <#
+    .SYNOPSIS
+        Gets inbox rules with only non-empty properties.
+    
+    .DESCRIPTION
+        This function retrieves inbox rules and displays only the properties that have values,
+        skipping empty, null, or default values for cleaner output.
+    
+    .EXAMPLE
+        Get-InboxRuleDetails
+        
+        Shows all inbox rules with only their non-empty properties.
+    
+    .EXAMPLE
+        Get-InboxRules | Where-Object { $_.Name -like "*Project*" } | Get-InboxRuleDetails
+        
+        Shows non-empty properties for rules with "Project" in their name.
+    #>    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline=$true)]
+        [PSObject[]]$Rules,
+        
+        [Parameter()]
+        [string]$OutputPath,
+        
+        [Parameter()]
+        [ValidateSet('JSON', 'CSV')]
+        [string]$OutputFormat = 'JSON'
+    )
+    
+    begin {
+        if (-not $Rules) {
+            $Rules = Get-InboxRules
+        }
+        $allRules = @()
+    }
+    
+    process {
+        $Rules | Select-Object -Property * | Where-Object {$_.PSObject.Properties} | ForEach-Object { 
+            $obj = $_ 
+            Write-Host "`nRule: $($obj.Name)" -ForegroundColor Yellow
+            
+            # Create a cleaned up object with non-empty properties
+            $cleanedRule = [ordered]@{
+                Name = $obj.Name
+                Description = ($obj | Get-InboxRuleDescription)
+            }
+            
+            $obj.PSObject.Properties | 
+                Where-Object { 
+                    $null -ne $_.Value -and           # Skip null values
+                    $_.Value -ne '' -and              # Skip empty strings
+                    $_.Value -ne @() -and             # Skip empty arrays
+                    (-not $_.Value -is [Boolean] -or $_.Value -eq $true) -and  # Only show true booleans
+                    $_.Name -ne 'ObjectState' -and    # Skip internal properties
+                    $_.Name -ne 'Name'                # Skip Name as it's already added
+                } | ForEach-Object {
+                    $cleanedRule[$_.Name] = $_.Value
+                }
+            
+            # Display the properties
+            $cleanedRule.GetEnumerator() | Format-Table -AutoSize -Wrap
+            
+            # Add to collection for output
+            $allRules += [PSCustomObject]$cleanedRule
+        }
+    }
+    
+    end {
+        if ($OutputPath) {
+            try {
+                $parentFolder = Split-Path -Path $OutputPath -Parent
+                if ($parentFolder -and -not (Test-Path -Path $parentFolder)) {
+                    New-Item -ItemType Directory -Path $parentFolder -Force | Out-Null
+                }
+                
+                switch ($OutputFormat) {
+                    'JSON' {
+                        $allRules | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath
+                        Write-Host "Rules exported to JSON file: $OutputPath" -ForegroundColor Green
+                    }
+                    'CSV' {
+                        $allRules | Export-Csv -Path $OutputPath -NoTypeInformation
+                        Write-Host "Rules exported to CSV file: $OutputPath" -ForegroundColor Green
+                    }
+                }
+            }
+            catch {
+                Write-Error "Failed to export rules to file: $_"
+            }
+        }
+          return $allRules
     }
 }
 
